@@ -22,23 +22,23 @@ public class RouteService {
         this.restTemplate = restTemplate;
     }
 
+    public void calculateHowMuchTimeOthersWouldNeedToReachTheSameDistanceFromDest(FastestCarRequest fastestCarRequest, Winner winner) {
+        //do the traversal like in find a winner by air
+//        ArrayList<Location> uniqueIntersections = getUniqueIntersectionsFromGeometryCoordinatesOfThisLegsSteps(routeResponse, legIndexStop);
+
+    }
+
     //TODO could also snap the location
-    public void findTheWinnerCar(FastestCarRequest fastestCarRequest) throws JsonProcessingException {
+    public Winner findTheWinnerCar(FastestCarRequest fastestCarRequest) throws JsonProcessingException {
 
         Double closestDistanceToDest = Double.MAX_VALUE;
         int indexOfaWinner = 99;
 
         for (int waypointOrCarIndex = 0; waypointOrCarIndex < fastestCarRequest.getWaypoints().size(); waypointOrCarIndex++) {
-            String uri = routeUri + fastestCarRequest.getOrigin() + ";"
-                    + fastestCarRequest.getWaypoints().get(waypointOrCarIndex).toLocString() + ";"
-                    + fastestCarRequest.getDestination()
-                    + "?steps=true&annotations=speed,distance,duration&geometries=geojson";
-
-
-            RouteResponse routeResponse = restTemplate.getForObject(uri, RouteResponse.class);
+            RouteResponse routeResponse = getRouteResponseFromOSRM(fastestCarRequest, waypointOrCarIndex);
 //            RouteResponse routeResponse = mockResponse();
-            Double distanceToDest = findHowFarTheCarIsFromTheOriginByAir(routeResponse, fastestCarRequest);
-            System.out.println("WayPOint: " + fastestCarRequest.getWaypoints().get(waypointOrCarIndex));
+            Double distanceToDest = findHowFarTheCarIsFromTheOriginByTimeLimitByAir(routeResponse, fastestCarRequest);
+            System.out.println("WayPoint: " + fastestCarRequest.getWaypoints().get(waypointOrCarIndex));
             if (distanceToDest < closestDistanceToDest) {
                 closestDistanceToDest = distanceToDest;
                 indexOfaWinner = waypointOrCarIndex;
@@ -47,7 +47,16 @@ public class RouteService {
 
         System.out.println("closest car is : " + fastestCarRequest.getWaypoints().get(indexOfaWinner));
         System.out.println("distance to dest: " + closestDistanceToDest);
+        return new Winner(fastestCarRequest.getWaypoints().get(indexOfaWinner), closestDistanceToDest);
 //        System.out.println("distance to dest: " + Location.haversine(fastestCarRequest.getDestination(), new Location(50.08401,14.453412)));
+    }
+
+    private RouteResponse getRouteResponseFromOSRM(FastestCarRequest fastestCarRequest, int waypointOrCarIndex) {
+        String uri = routeUri + fastestCarRequest.getOrigin() + ";"
+                + fastestCarRequest.getWaypoints().get(waypointOrCarIndex).toLocString() + ";"
+                + fastestCarRequest.getDestination()
+                + "?steps=true&annotations=speed,distance,duration&geometries=geojson";
+        return restTemplate.getForObject(uri, RouteResponse.class);
     }
 
     private RouteResponse mockResponse() throws JsonProcessingException {
@@ -58,7 +67,7 @@ public class RouteService {
     }
 
 
-    private Double findHowFarTheCarIsFromTheOriginByAir(RouteResponse routeResponse, FastestCarRequest fastestCarRequest) {
+    private Double findHowFarTheCarIsFromTheOriginByTimeLimitByAir(RouteResponse routeResponse, FastestCarRequest fastestCarRequest) {
         int legIndexStop = 0;
         int lastPointWhereDurationDidNotExceedTimeLimit = 0;
         Double durationVar = 0.0;
@@ -84,12 +93,10 @@ public class RouteService {
                     System.out.println("lower");
                 } else {
                     System.out.println("over");
-//                    lastPointWhereDurationDidNotExceedTimeLimit = durationsIndex - 2;
                     lastPointWhereDurationDidNotExceedTimeLimit = durationsIndex;
                     legIndexStop = legIndex;
                     durationsIndex = legDurations.size();
                     legIndex = routeResponse.getTheRoute().getLegs().size();
-                    //stop here and try to figure out its location
                 }
             }
         }
@@ -97,7 +104,7 @@ public class RouteService {
 //        System.out.println("lastPointWhereDurationDidNotExceedTimeLimit: " + lastPointWhereDurationDidNotExceedTimeLimit);
 //        System.out.println("legIndexStop: " + legIndexStop);
 
-        ArrayList<Location> uniqueIntersections = getGeometryCooridinatesUniqueIntersections(routeResponse, legIndexStop);
+        ArrayList<Location> uniqueIntersections = getUniqueIntersectionsFromGeometryCoordinatesOfThisLegsSteps(routeResponse, legIndexStop);
 
 
         //TODO can interpolate here to get more precise location
@@ -109,8 +116,8 @@ public class RouteService {
     }
 
 
-    //unite all the geometry coordinates into one array
-    private ArrayList<Location> getGeometryCooridinatesUniqueIntersections(RouteResponse routeResponse, int legIndexStop) {
+    //unite all the geometry coordinates intersection into one array
+    private ArrayList<Location> getUniqueIntersectionsFromGeometryCoordinatesOfThisLegsSteps(RouteResponse routeResponse, int legIndexStop) {
         Set uniqueIntersections = new LinkedHashSet<Location>();
         for (int step = 0; step < routeResponse.getTheRoute().getLegs().get(legIndexStop).getSteps().size(); step++) {
 
