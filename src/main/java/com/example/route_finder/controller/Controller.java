@@ -19,7 +19,7 @@ public class Controller {
             value = "/find_fastest_car", consumes = "application/json", produces = "application/json")
     public String createPerson(@RequestBody FastestCarRequest fastestCarRequest) throws JsonProcessingException {
 //        System.out.println(fastestCarRequest.getDestination());
-        routeService.function(fastestCarRequest);
+        routeService.findTheWinnerCar(fastestCarRequest);
         return "asd";
     }
 }

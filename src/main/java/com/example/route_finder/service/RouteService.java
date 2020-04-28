@@ -22,74 +22,82 @@ public class RouteService {
         this.restTemplate = restTemplate;
     }
 
+    //TODO could also snap the location
+    public void findTheWinnerCar(FastestCarRequest fastestCarRequest) throws JsonProcessingException {
 
-//    http://router.project-osrm.org/route/v1/driving/14.446652,50.084837;14.453412,50.08401?steps=true&annotations=speed,distance,duration&geometries=geojson'
-//    http://router.project-osrm.org/route/v1/driving/14.446652,50.084837;14.453412,50.0840114.455121,50.082659?steps=true&annotations=speed,distance,duration&geometries=geojson
+        Double closestDistanceToDest = Double.MAX_VALUE;
+        int indexOfaWinner = 99;
 
-    public void function(FastestCarRequest fastestCarRequest) throws JsonProcessingException {
-        String uri = routeUri + fastestCarRequest.getOrigin() + ";"
-                + fastestCarRequest.getWaypoints().get(0).toLocString() + ";"
-                + fastestCarRequest.getDestination()
-                + "?steps=true&annotations=speed,distance,duration&geometries=geojson";
+        for (int waypointOrCarIndex = 0; waypointOrCarIndex < fastestCarRequest.getWaypoints().size(); waypointOrCarIndex++) {
+            String uri = routeUri + fastestCarRequest.getOrigin() + ";"
+                    + fastestCarRequest.getWaypoints().get(waypointOrCarIndex).toLocString() + ";"
+                    + fastestCarRequest.getDestination()
+                    + "?steps=true&annotations=speed,distance,duration&geometries=geojson";
 
 
+            RouteResponse routeResponse = restTemplate.getForObject(uri, RouteResponse.class);
+//            RouteResponse routeResponse = mockResponse();
+            Double distanceToDest = findHowFarTheCarIsFromTheOriginByAir(routeResponse, fastestCarRequest);
+            System.out.println("WayPOint: " + fastestCarRequest.getWaypoints().get(waypointOrCarIndex));
+            if (distanceToDest < closestDistanceToDest) {
+                closestDistanceToDest = distanceToDest;
+                indexOfaWinner = waypointOrCarIndex;
+            }
+        }
+
+        System.out.println("closest car is : " + fastestCarRequest.getWaypoints().get(indexOfaWinner));
+        System.out.println("distance to dest: " + closestDistanceToDest);
+//        System.out.println("distance to dest: " + Location.haversine(fastestCarRequest.getDestination(), new Location(50.08401,14.453412)));
+    }
+
+    private RouteResponse mockResponse() throws JsonProcessingException {
         ObjectMapper objectMapper = new ObjectMapper();
         String json = mockJson();
         RouteResponse routeResponse = objectMapper.readValue(json, RouteResponse.class);
-
-
-
-
-//        System.out.println("uris: " + uri);
-//        RouteResponse routeResponse = restTemplate.getForObject(uri, RouteResponse.class);
-//        System.out.println(routeResponse.getRoutes().get(0).getLegs().get(0).getSteps().get(0).getGeometry().getCoordinates().size());
-//        System.out.println(routeResponse.getRoutes().get(0).getLegs().get(1).getSteps().get(0).getGeometry().getCoordinates().size());
-//        System.out.println(routeResponse.getRoutes().get(0).getLegs().get(1).getSteps().get(1).getGeometry().getCoordinates().size());
-
-        findHowFarTheCarGoesInGivenTime(routeResponse, fastestCarRequest);
-
-
+        return routeResponse;
     }
 
 
-    private void findHowFarTheCarGoesInGivenTime(RouteResponse routeResponse, FastestCarRequest fastestCarRequest) {
-        //assume first that no one gets on time
-        //check legs duration:
+    private Double findHowFarTheCarIsFromTheOriginByAir(RouteResponse routeResponse, FastestCarRequest fastestCarRequest) {
         int legIndexStop = 0;
-        int stepInLegIndexStop = 0;
         int lastPointWhereDurationDidNotExceedTimeLimit = 0;
         Double durationVar = 0.0;
         RouteLeg routeLeg = null;
         ArrayList<Double> legDurations = null;
 
-        System.out.println("legs size: " + routeResponse.getTheRoute().getLegs().size());
+//        System.out.println("legs size: " + routeResponse.getTheRoute().getLegs().size());
 
         for (int legIndex = 0; legIndex < routeResponse.getTheRoute().getLegs().size(); legIndex++) {
             legDurations = routeResponse.getTheRoute().getLegs().get(legIndex).getAnnotation().getDuration();
-            System.out.println("legIndex: " + legIndex);
-            System.out.println("timeLimit: " + fastestCarRequest.getTime());
+            System.out.println("legDurations");
+//            legDurations.forEach(d -> System.out.println(d));
+//            System.out.println("legIndex: " + legIndex);
+//            System.out.println("timeLimit: " + fastestCarRequest.getTime());
 
             for (int durationsIndex = 0; durationsIndex < legDurations.size(); durationsIndex++) {
                 System.out.println("durationVar: " + durationVar);
-                if (durationVar <= fastestCarRequest.getTime()) {
+                System.out.println("durationsIndex: " + durationsIndex);
+                if (durationVar + legDurations.get(durationsIndex) <= fastestCarRequest.getTime()) {
                     //move to other leg
                     durationVar += legDurations.get(durationsIndex);
                     System.out.println("duration: " + legDurations.get(durationsIndex));
                     System.out.println("lower");
                 } else {
                     System.out.println("over");
-                    lastPointWhereDurationDidNotExceedTimeLimit = durationsIndex - 2;
+//                    lastPointWhereDurationDidNotExceedTimeLimit = durationsIndex - 2;
+                    lastPointWhereDurationDidNotExceedTimeLimit = durationsIndex;
                     legIndexStop = legIndex;
-                    break;
+                    durationsIndex = legDurations.size();
+                    legIndex = routeResponse.getTheRoute().getLegs().size();
                     //stop here and try to figure out its location
                 }
             }
         }
 
-        System.out.println("lastPointWhereDurationDidNotExceedTimeLimit: " + lastPointWhereDurationDidNotExceedTimeLimit);
-        System.out.println("legIndexStop: " + legIndexStop);
+//        System.out.println("lastPointWhereDurationDidNotExceedTimeLimit: " + lastPointWhereDurationDidNotExceedTimeLimit);
+//        System.out.println("legIndexStop: " + legIndexStop);
 
-        ArrayList<Location> uniqueIntersections = getGeometryCooridinatesUniqueIntersections(routeResponse, legIndexStop, lastPointWhereDurationDidNotExceedTimeLimit);
+        ArrayList<Location> uniqueIntersections = getGeometryCooridinatesUniqueIntersections(routeResponse, legIndexStop);
 
 
         //TODO can interpolate here to get more precise location
@@ -97,17 +105,12 @@ public class RouteService {
 
         System.out.println("lastKnownLocationWithinTimeLimit: " + lastKnownLocationWithinTimeLimit);
         System.out.println("distance from destination at time = t : " + Location.haversine(fastestCarRequest.getDestination(), lastKnownLocationWithinTimeLimit));
-
-
-//        System.out.println("last known location: " +
-//                routeResponse.getTheRoute().getLegs().get(legIndexStop).getSteps();
-//
-//        )
+        return Location.haversine(fastestCarRequest.getDestination(), lastKnownLocationWithinTimeLimit);
     }
 
 
     //unite all the geometry coordinates into one array
-    private ArrayList<Location> getGeometryCooridinatesUniqueIntersections(RouteResponse routeResponse, int legIndexStop, int lastPointWhereDurationDidNotExceedTimeLimit) {
+    private ArrayList<Location> getGeometryCooridinatesUniqueIntersections(RouteResponse routeResponse, int legIndexStop) {
         Set uniqueIntersections = new LinkedHashSet<Location>();
         for (int step = 0; step < routeResponse.getTheRoute().getLegs().get(legIndexStop).getSteps().size(); step++) {
 
@@ -120,10 +123,10 @@ public class RouteService {
                             }
                     );
         }
-        System.out.println("unique intersections:");
-        uniqueIntersections.forEach(
-                c -> System.out.println(c)
-        );
+//        System.out.println("unique intersections:");
+//        uniqueIntersections.forEach(
+//                c -> System.out.println(c)
+//        );
         return new ArrayList<Location> (uniqueIntersections);
     }
 
@@ -716,6 +719,18 @@ public class RouteService {
                 "}\n" +
                 "\n";
     }
+
+
+
+
+
+
+
+
+
+
+
+
 
     public String findWinnerAndDelays(FastestCarRequest fastestCarRequest) {
         TimeTable fromSourceToWaypoints = getTimeTable(fastestCarRequest, fastestCarRequest.getOrigin(), "?sources=0");
