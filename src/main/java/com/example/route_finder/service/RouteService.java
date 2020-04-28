@@ -24,8 +24,66 @@ public class RouteService {
 
     public void calculateHowMuchTimeOthersWouldNeedToReachTheSameDistanceFromDest(FastestCarRequest fastestCarRequest, Winner winner) {
         //do the traversal like in find a winner by air
-//        ArrayList<Location> uniqueIntersections = getUniqueIntersectionsFromGeometryCoordinatesOfThisLegsSteps(routeResponse, legIndexStop);
+        Double closestDistanceToDest = Double.MAX_VALUE;
+        int indexOfaWinner = 99;
 
+        for (int waypointOrCarIndex = 0; waypointOrCarIndex < fastestCarRequest.getWaypoints().size(); waypointOrCarIndex++) {
+            RouteResponse routeResponse = getRouteResponseFromOSRM(fastestCarRequest, waypointOrCarIndex);
+
+            int legIndexStop = 0;
+            int indexOfIntersectionWhereTheCarIsAtTheSameDistanceAsTheWinnerCarWhenItWon = Integer.MAX_VALUE;
+
+            ArrayList<Double> legDurations = null;
+            ArrayList<Location> uniqueIntersections = null;
+            //traverse steps of the legs of the route
+
+
+            System.out.println("intersections from the back: ");
+            for (int legIndex = routeResponse.getTheRoute().getLegs().size() - 1; legIndex >= 0 ; legIndex--) {
+                uniqueIntersections = getUniqueIntersectionsFromGeometryCoordinatesOfThisLeg(routeResponse, legIndex);
+                legDurations = routeResponse.getTheRoute().getLegs().get(legIndex).getAnnotation().getDuration();
+                System.out.println("------");
+                for (int uniqueIntersectionIndex = uniqueIntersections.size() - 1; uniqueIntersectionIndex >= 0; uniqueIntersectionIndex--) {
+
+
+                    Double distanceToDest = Location.haversine(fastestCarRequest.getDestination(), uniqueIntersections.get(uniqueIntersectionIndex));
+                    System.out.println("intersection: " + uniqueIntersections.get(uniqueIntersectionIndex));
+                    System.out.println("distanceToDest: " + distanceToDest);
+                    if (distanceToDest > winner.getDistanceToDestinationAtTimeLimit()
+                        || isWithin5Meters(winner, distanceToDest)) {
+                        System.out.println("this is where the car is at the same distance as the winner car when it won: " + uniqueIntersections.get(uniqueIntersectionIndex));
+                        System.out.println(winner.getDistanceToDestinationAtTimeLimit());
+                        System.out.println("distanceToDest: " + distanceToDest);
+                        //save last point where car was within time limit
+                        indexOfIntersectionWhereTheCarIsAtTheSameDistanceAsTheWinnerCarWhenItWon = uniqueIntersectionIndex;
+                        legIndexStop = legIndex;
+                        //break
+                        uniqueIntersectionIndex = -1;
+                        legIndex = -1;
+                    }
+                }
+            }
+//            ArrayList<Location> uniqueIntersections = getUniqueIntersectionsFromGeometryCoordinatesOfThisLeg(routeResponse, legIndexStop);
+//            //TODO can interpolate here to get more precise location
+//            Location lastKnownLocationWithinTimeLimit = uniqueIntersections.get(lastPointWhereDurationDidNotExceedTimeLimit + 1);
+//            return Location.haversine(fastestCarRequest.getDestination(), lastKnownLocationWithinTimeLimit);
+
+            System.out.println("indexWhereTheCarIsAtTheSameDistanceAsTheWinnerCarWhenItWon: " +indexOfIntersectionWhereTheCarIsAtTheSameDistanceAsTheWinnerCarWhenItWon);
+            System.out.println("legIndexStop: " + legIndexStop);
+
+            Double delay = 0.0;
+            //# of durations in leg = (# of unique intersections - 1)
+            for (int i = indexOfIntersectionWhereTheCarIsAtTheSameDistanceAsTheWinnerCarWhenItWon; i < uniqueIntersections.size() - 1; i++) {
+                delay += legDurations.get(i);
+            }
+
+            System.out.println("delay: " + delay);
+        }
+
+    }
+
+    private boolean isWithin5Meters(Winner winner, Double distanceToDest) {
+        return Math.abs(distanceToDest - winner.getDistanceToDestinationAtTimeLimit()) < 5;
     }
 
     //TODO could also snap the location
@@ -71,53 +129,31 @@ public class RouteService {
         int legIndexStop = 0;
         int lastPointWhereDurationDidNotExceedTimeLimit = 0;
         Double durationVar = 0.0;
-        RouteLeg routeLeg = null;
         ArrayList<Double> legDurations = null;
-
-//        System.out.println("legs size: " + routeResponse.getTheRoute().getLegs().size());
-
+        //traverse steps of the legs of the route
         for (int legIndex = 0; legIndex < routeResponse.getTheRoute().getLegs().size(); legIndex++) {
             legDurations = routeResponse.getTheRoute().getLegs().get(legIndex).getAnnotation().getDuration();
-            System.out.println("legDurations");
-//            legDurations.forEach(d -> System.out.println(d));
-//            System.out.println("legIndex: " + legIndex);
-//            System.out.println("timeLimit: " + fastestCarRequest.getTime());
-
             for (int durationsIndex = 0; durationsIndex < legDurations.size(); durationsIndex++) {
-                System.out.println("durationVar: " + durationVar);
-                System.out.println("durationsIndex: " + durationsIndex);
                 if (durationVar + legDurations.get(durationsIndex) <= fastestCarRequest.getTime()) {
-                    //move to other leg
                     durationVar += legDurations.get(durationsIndex);
-                    System.out.println("duration: " + legDurations.get(durationsIndex));
-                    System.out.println("lower");
                 } else {
-                    System.out.println("over");
+                    //save last point where car was within time limit
                     lastPointWhereDurationDidNotExceedTimeLimit = durationsIndex;
                     legIndexStop = legIndex;
+                    //break
                     durationsIndex = legDurations.size();
                     legIndex = routeResponse.getTheRoute().getLegs().size();
                 }
             }
         }
-
-//        System.out.println("lastPointWhereDurationDidNotExceedTimeLimit: " + lastPointWhereDurationDidNotExceedTimeLimit);
-//        System.out.println("legIndexStop: " + legIndexStop);
-
-        ArrayList<Location> uniqueIntersections = getUniqueIntersectionsFromGeometryCoordinatesOfThisLegsSteps(routeResponse, legIndexStop);
-
-
+        ArrayList<Location> uniqueIntersections = getUniqueIntersectionsFromGeometryCoordinatesOfThisLeg(routeResponse, legIndexStop);
         //TODO can interpolate here to get more precise location
         Location lastKnownLocationWithinTimeLimit = uniqueIntersections.get(lastPointWhereDurationDidNotExceedTimeLimit + 1);
-
-        System.out.println("lastKnownLocationWithinTimeLimit: " + lastKnownLocationWithinTimeLimit);
-        System.out.println("distance from destination at time = t : " + Location.haversine(fastestCarRequest.getDestination(), lastKnownLocationWithinTimeLimit));
         return Location.haversine(fastestCarRequest.getDestination(), lastKnownLocationWithinTimeLimit);
     }
 
-
     //unite all the geometry coordinates intersection into one array
-    private ArrayList<Location> getUniqueIntersectionsFromGeometryCoordinatesOfThisLegsSteps(RouteResponse routeResponse, int legIndexStop) {
+    private ArrayList<Location> getUniqueIntersectionsFromGeometryCoordinatesOfThisLeg(RouteResponse routeResponse, int legIndexStop) {
         Set uniqueIntersections = new LinkedHashSet<Location>();
         for (int step = 0; step < routeResponse.getTheRoute().getLegs().get(legIndexStop).getSteps().size(); step++) {
 

@@ -21,6 +21,9 @@ public class Controller {
     public String createPerson(@RequestBody FastestCarRequest fastestCarRequest) throws JsonProcessingException {
 //        System.out.println(fastestCarRequest.getDestination());
         Winner winner = routeService.findTheWinnerCar(fastestCarRequest);
+        //remove the winner
+        //TODO rename intersections to something else
+        fastestCarRequest.getWaypoints().remove(winner.getWaypointName());
         routeService.calculateHowMuchTimeOthersWouldNeedToReachTheSameDistanceFromDest(fastestCarRequest, winner);
         return "asd";
     }
