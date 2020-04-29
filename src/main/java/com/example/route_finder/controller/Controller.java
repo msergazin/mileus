@@ -22,13 +22,6 @@ public class Controller {
             value = "/find_fastest_car", consumes = "application/json", produces = "application/json")
     public Response fintheWinnerCarAndDelays(
             @RequestBody FastestCarRequest fastestCarRequest) {
-        Winner winner = routeService.findTheWinnerCar(fastestCarRequest);
-        //remove the winner
-        //TODO interface and implementations
-        //TODO rename intersections to something else
-        fastestCarRequest.getWaypoints().remove(winner.getWaypointName());
-        HashMap<String, Double> delays = routeService.calculateDelays(fastestCarRequest, winner);
-
-        return new Response(winner.getWaypointName().getName(), delays);
+        return routeService.findTheWinnerAndCalculateDelays(fastestCarRequest);
     }
 }

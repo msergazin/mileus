@@ -19,6 +19,13 @@ public class RouteServiceImpl implements RouteService {
         this.restTemplate = restTemplate;
     }
 
+    public Response findTheWinnerAndCalculateDelays(FastestCarRequest fastestCarRequest) {
+        Winner winner = findTheWinnerCar(fastestCarRequest);
+        //remove the winner
+        fastestCarRequest.getWaypoints().remove(winner.getWaypointName());
+        HashMap<String, Double> delays = calculateDelays(fastestCarRequest, winner);
+        return new Response(winner.getWaypointName().getName(), delays);
+    }
     public HashMap<String, Double> calculateDelays(FastestCarRequest fastestCarRequest, Winner winner) {
         HashMap<String, Double> delays = new HashMap();
         delays.put(winner.getWaypointName().getName(), 0.0);
@@ -66,10 +73,12 @@ public class RouteServiceImpl implements RouteService {
             RouteResponse routeResponse = getRouteResponseFromOSRM(fastestCarRequest, waypointOrCarIndex);
             DistanceAndDuration distanceToDestAndDuration = findHowFarTheCarIsFromTheOriginByTimeLimitByAir(routeResponse, fastestCarRequest);
             System.out.println("WayPoint: " + fastestCarRequest.getWaypoints().get(waypointOrCarIndex));
+            //find closest car at time limit
             if (distanceToDestAndDuration.getDistanceToOrigin() < closestDistanceToDest) {
                 closestDistanceToDest = distanceToDestAndDuration.getDistanceToOrigin();
                 indexOfaWinner = waypointOrCarIndex;
             }
+            //save distance travelled by the car
             totalDurationOfRouteMinusDurationTravelledByTheCarWithinTimeLimit.put(
                     fastestCarRequest.getWaypoints().get(waypointOrCarIndex).getName(),
                     routeResponse.getTheRoute().getDuration() - distanceToDestAndDuration.getDurationSoFar()
