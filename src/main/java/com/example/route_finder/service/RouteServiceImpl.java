@@ -141,8 +141,6 @@ public class RouteServiceImpl implements RouteService {
         for (int i = indexOfIntersectionWhereTheCarIsAtTheSameDistanceAsTheWinnerCarWhenItWon; i < uniqueIntersections.size() - 1; i++) {
             timeRequiredToReachSameDistanceFromDestAsTheWinnerCar += legDurations.get(i);
         }
-        System.out.println("timeRequiredToReachSameDistanceFromDestAsTheWinnerCar: " + timeRequiredToReachSameDistanceFromDestAsTheWinnerCar);
-        System.out.println("totalDurationOfRouteMinusDurationTravelledByTheCarWithinTimeLimit: " + totalDurationOfRouteMinusDurationTravelledByTheCarWithinTimeLimit);
         return totalDurationOfRouteMinusDurationTravelledByTheCarWithinTimeLimit - timeRequiredToReachSameDistanceFromDestAsTheWinnerCar;
     }
 
