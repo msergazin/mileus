@@ -1,8 +1,7 @@
 package com.example.route_finder.entity;
 
 
-import com.example.route_finder.entity.Location;
-import com.example.route_finder.entity.Waypoint;
+import com.example.route_finder.entity.osrm.objects.Waypoint;
 
 import java.util.ArrayList;
 

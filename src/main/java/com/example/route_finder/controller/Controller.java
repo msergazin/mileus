@@ -3,8 +3,7 @@ package com.example.route_finder.controller;
 import com.example.route_finder.entity.FastestCarRequest;
 import com.example.route_finder.entity.Response;
 import com.example.route_finder.entity.Winner;
-import com.example.route_finder.service.RouteServiceImpl;
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.example.route_finder.service.impl.RouteServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 

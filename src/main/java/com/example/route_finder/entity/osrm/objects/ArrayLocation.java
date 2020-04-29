@@ -1,4 +1,4 @@
-package com.example.route_finder.entity;
+package com.example.route_finder.entity.osrm.objects;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonFormat;

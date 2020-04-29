@@ -1,6 +1,8 @@
-package com.example.route_finder.service;
+package com.example.route_finder.service.impl;
 
 import com.example.route_finder.entity.*;
+import com.example.route_finder.entity.osrm.objects.RouteResponse;
+import com.example.route_finder.service.RouteService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;

@@ -1,4 +1,6 @@
-package com.example.route_finder.entity;
+package com.example.route_finder.entity.osrm.objects;
+
+import com.example.route_finder.entity.Location;
 
 public class Waypoint extends Location {
     private String name;
