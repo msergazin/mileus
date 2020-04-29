@@ -1,10 +1,16 @@
 package com.example.route_finder.entity;
 
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
 import java.util.ArrayList;
 import java.util.Objects;
 
 public class Location {
+    @Min(value = -90)
+    @Max(value = 90)
     private Double lat;
+    @Min(value = -180)
+    @Max(value = 180)
     private Double lon;
 
     public Double getLat() {

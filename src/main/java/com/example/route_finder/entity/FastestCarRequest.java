@@ -4,12 +4,20 @@ package com.example.route_finder.entity;
 import com.example.route_finder.entity.osrm.objects.Waypoint;
 
 import java.util.ArrayList;
-
+import javax.validation.constraints.Min;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 public class FastestCarRequest {
 
+    @NotNull
     private Location origin;
+    @NotNull
     private Location destination;
+    @NotNull
+    @Min(0)
     private Integer time;
+    @NotNull
+    @Size(min = 1)
     private ArrayList<Waypoint> waypoints;
     public FastestCarRequest(Location origin, Location destination, Integer time, ArrayList<Waypoint> waypoints){
         this.origin = origin;

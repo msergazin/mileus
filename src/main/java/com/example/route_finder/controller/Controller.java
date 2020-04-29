@@ -7,6 +7,7 @@ import com.example.route_finder.service.impl.RouteServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
 import java.util.HashMap;
 
 @RestController
@@ -21,7 +22,7 @@ public class Controller {
     @PostMapping(
             value = "/find_fastest_car", consumes = "application/json", produces = "application/json")
     public Response fintheWinnerCarAndDelays(
-            @RequestBody FastestCarRequest fastestCarRequest) {
+            @RequestBody @Valid FastestCarRequest fastestCarRequest) {
         return routeService.findTheWinnerAndCalculateDelays(fastestCarRequest);
     }
 }
