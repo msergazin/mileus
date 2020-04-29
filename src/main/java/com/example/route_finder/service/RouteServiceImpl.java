@@ -1,8 +1,6 @@
 package com.example.route_finder.service;
 
 import com.example.route_finder.entity.*;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -12,7 +10,6 @@ import java.util.*;
 @Service
 public class RouteServiceImpl implements RouteService {
     private final RestTemplate restTemplate;
-    final String tableUri = "http://router.project-osrm.org/table/v1/driving/";
     final String routeUri = "http://router.project-osrm.org/route/v1/driving/";
 
     @Autowired
@@ -48,8 +45,11 @@ public class RouteServiceImpl implements RouteService {
                     }
                 }
             }
-            Double delay = calculateDelay(indexOfIntersectionWhereTheCarIsAtTheSameDistanceAsTheWinnerCarWhenItWon, legDurations, uniqueIntersections);
-            delays.put(fastestCarRequest.getWaypoints().get(waypointOrCarIndex).getName(), delay);
+            String pointName = fastestCarRequest.getWaypoints().get(waypointOrCarIndex).getName();
+            Double delay = calculateDelay(
+                    winner.getTotalDurationOfRouteMinusDurationTravelledByTheCarWithinTimeLimit().get(pointName),
+                    indexOfIntersectionWhereTheCarIsAtTheSameDistanceAsTheWinnerCarWhenItWon, legDurations, uniqueIntersections);
+            delays.put(pointName, delay);
         }
 
         return delays;
@@ -59,20 +59,26 @@ public class RouteServiceImpl implements RouteService {
     public Winner findTheWinnerCar(FastestCarRequest fastestCarRequest) {
         Double closestDistanceToDest = Double.MAX_VALUE;
         int indexOfaWinner = 99;
+        HashMap<String, Double> totalDurationOfRouteMinusDurationTravelledByTheCarWithinTimeLimit = new HashMap<>();
         for (int waypointOrCarIndex = 0; waypointOrCarIndex < fastestCarRequest.getWaypoints().size(); waypointOrCarIndex++) {
             RouteResponse routeResponse = getRouteResponseFromOSRM(fastestCarRequest, waypointOrCarIndex);
-            Double distanceToDest = findHowFarTheCarIsFromTheOriginByTimeLimitByAir(routeResponse, fastestCarRequest);
+            DistanceAndDuration distanceToDestAndDuration = findHowFarTheCarIsFromTheOriginByTimeLimitByAir(routeResponse, fastestCarRequest);
             System.out.println("WayPoint: " + fastestCarRequest.getWaypoints().get(waypointOrCarIndex));
-            if (distanceToDest < closestDistanceToDest) {
-                closestDistanceToDest = distanceToDest;
+            if (distanceToDestAndDuration.getDistanceToOrigin() < closestDistanceToDest) {
+                closestDistanceToDest = distanceToDestAndDuration.getDistanceToOrigin();
                 indexOfaWinner = waypointOrCarIndex;
             }
+            totalDurationOfRouteMinusDurationTravelledByTheCarWithinTimeLimit.put(
+                    fastestCarRequest.getWaypoints().get(waypointOrCarIndex).getName(),
+                    routeResponse.getTheRoute().getDuration() - distanceToDestAndDuration.getDurationSoFar()
+            );
         }
         System.out.println("closest car at the time limit is : " + fastestCarRequest.getWaypoints().get(indexOfaWinner));
         System.out.println("distance to dest at the time limit: " + closestDistanceToDest);
-        return new Winner(fastestCarRequest.getWaypoints().get(indexOfaWinner), closestDistanceToDest);
+        return new Winner(fastestCarRequest.getWaypoints().get(indexOfaWinner), closestDistanceToDest, totalDurationOfRouteMinusDurationTravelledByTheCarWithinTimeLimit);
     }
 
+    //TODO cache http request or save it somewhere
     private RouteResponse getRouteResponseFromOSRM(FastestCarRequest fastestCarRequest, int waypointOrCarIndex) {
         String uri = routeUri + fastestCarRequest.getOrigin() + ";"
                 + fastestCarRequest.getWaypoints().get(waypointOrCarIndex).toLocString() + ";"
@@ -81,7 +87,7 @@ public class RouteServiceImpl implements RouteService {
         return restTemplate.getForObject(uri, RouteResponse.class);
     }
 
-    private Double findHowFarTheCarIsFromTheOriginByTimeLimitByAir(RouteResponse routeResponse, FastestCarRequest fastestCarRequest) {
+    private DistanceAndDuration findHowFarTheCarIsFromTheOriginByTimeLimitByAir(RouteResponse routeResponse, FastestCarRequest fastestCarRequest) {
         int legIndexStop = 0;
         int lastPointWhereDurationDidNotExceedTimeLimit = 0;
         Double durationVar = 0.0;
@@ -105,7 +111,9 @@ public class RouteServiceImpl implements RouteService {
         ArrayList<Location> uniqueIntersections = getUniqueIntersectionsFromGeometryCoordinatesOfThisLeg(routeResponse, legIndexStop);
         //TODO can interpolate here to get more precise location
         Location lastKnownLocationWithinTimeLimit = uniqueIntersections.get(lastPointWhereDurationDidNotExceedTimeLimit + 1);
-        return Location.haversine(fastestCarRequest.getDestination(), lastKnownLocationWithinTimeLimit);
+        return new DistanceAndDuration(
+                Location.haversine(fastestCarRequest.getDestination(), lastKnownLocationWithinTimeLimit),
+                durationVar);
     }
 
     //unite all the geometry coordinates intersection into one array
@@ -124,14 +132,18 @@ public class RouteServiceImpl implements RouteService {
         return new ArrayList<Location> (uniqueIntersections);
     }
 
-    private Double calculateDelay(int indexOfIntersectionWhereTheCarIsAtTheSameDistanceAsTheWinnerCarWhenItWon, ArrayList<Double> legDurations, ArrayList<Location> uniqueIntersections) {
-        Double delay = 0.0;
+    private Double calculateDelay(
+            Double totalDurationOfRouteMinusDurationTravelledByTheCarWithinTimeLimit,
+            int indexOfIntersectionWhereTheCarIsAtTheSameDistanceAsTheWinnerCarWhenItWon,
+            ArrayList<Double> legDurations, ArrayList<Location> uniqueIntersections) {
+        Double timeRequiredToReachSameDistanceFromDestAsTheWinnerCar = 0.0;
         //# of durations in leg = (# of unique intersections - 1)
         for (int i = indexOfIntersectionWhereTheCarIsAtTheSameDistanceAsTheWinnerCarWhenItWon; i < uniqueIntersections.size() - 1; i++) {
-            delay += legDurations.get(i);
+            timeRequiredToReachSameDistanceFromDestAsTheWinnerCar += legDurations.get(i);
         }
-        System.out.println("delay: " + delay);
-        return delay;
+        System.out.println("timeRequiredToReachSameDistanceFromDestAsTheWinnerCar: " + timeRequiredToReachSameDistanceFromDestAsTheWinnerCar);
+        System.out.println("totalDurationOfRouteMinusDurationTravelledByTheCarWithinTimeLimit: " + totalDurationOfRouteMinusDurationTravelledByTheCarWithinTimeLimit);
+        return totalDurationOfRouteMinusDurationTravelledByTheCarWithinTimeLimit - timeRequiredToReachSameDistanceFromDestAsTheWinnerCar;
     }
 
     private boolean isWithin5Meters(Winner winner, Double distanceToDest) {

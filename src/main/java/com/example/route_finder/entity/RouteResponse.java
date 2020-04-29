@@ -10,6 +10,7 @@ import java.util.ArrayList;
 public class RouteResponse {
     private String code;
     private ArrayList<RouteObject> routes;
+    private Double timeSpent;
 
     @JsonCreator
     public RouteResponse(
@@ -17,6 +18,14 @@ public class RouteResponse {
             @JsonProperty("code") String code) {
         this.routes = routes;
         this.code = code;
+    }
+
+    public Double getTimeSpent() {
+        return timeSpent;
+    }
+
+    public void setTimeSpent(Double timeSpent) {
+        this.timeSpent = timeSpent;
     }
 
     public ArrayList<RouteObject> getRoutes() {

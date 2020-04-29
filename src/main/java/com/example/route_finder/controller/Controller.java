@@ -21,7 +21,7 @@ public class Controller {
 
     @PostMapping(
             value = "/find_fastest_car", consumes = "application/json", produces = "application/json")
-    public Response fintheWinnerCarAndDelays(@RequestBody FastestCarRequest fastestCarRequest) throws JsonProcessingException {
+    public Response fintheWinnerCarAndDelays(@RequestBody FastestCarRequest fastestCarRequest) {
         Winner winner = routeService.findTheWinnerCar(fastestCarRequest);
         //remove the winner
         //TODO interface and implementations
