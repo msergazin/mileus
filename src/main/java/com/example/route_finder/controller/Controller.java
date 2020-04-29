@@ -1,11 +1,14 @@
 package com.example.route_finder.controller;
 
 import com.example.route_finder.entity.FastestCarRequest;
+import com.example.route_finder.entity.Response;
 import com.example.route_finder.entity.Winner;
 import com.example.route_finder.service.RouteService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
 
 @RestController
 public class Controller {
@@ -18,13 +21,14 @@ public class Controller {
 
     @PostMapping(
             value = "/find_fastest_car", consumes = "application/json", produces = "application/json")
-    public String createPerson(@RequestBody FastestCarRequest fastestCarRequest) throws JsonProcessingException {
-//        System.out.println(fastestCarRequest.getDestination());
+    public Response fintheWinnerCarAndDelays(@RequestBody FastestCarRequest fastestCarRequest) throws JsonProcessingException {
         Winner winner = routeService.findTheWinnerCar(fastestCarRequest);
         //remove the winner
+        //TODO interface and implementations
         //TODO rename intersections to something else
         fastestCarRequest.getWaypoints().remove(winner.getWaypointName());
-        routeService.calculateHowMuchTimeOthersWouldNeedToReachTheSameDistanceFromDest(fastestCarRequest, winner);
-        return "asd";
+        HashMap<String, Double> delays = routeService.calculateDelays(fastestCarRequest, winner);
+
+        return new Response(winner.getWaypointName().getName(), delays);
     }
 }
